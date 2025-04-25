@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>汉字配对 · 多关卡挑战</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to bottom, #fefcea, #f1da36);
+      text-align: center;
+      margin: 0;
+    }
+    h1 {
+      color: #d35400;
+      padding-top: 20px;
+    }
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 70px);
+      grid-gap: 10px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+    .tile {
+      width: 70px;
+      height: 70px;
+      background-color: #fff5e1;
+      border: 2px solid #f39c12;
+      font-size: 20px;
+      line-height: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.3s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+    }
+    .tile:hover {
+      background-color: #f9e79f;
+    }
+    #progress, #level, #timer, #score {
+      margin: 10px;
+      font-size: 18px;
+      color: #7d6608;
+    }
+    #victory-message {
+      font-size: 22px;
+      color: green;
+      margin-top: 20px;
+    }
+    #restart-button {
+      margin-top: 15px;
+      display: none;
+      font-size: 16px;
+      background-color: #d35400;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #teaching-tip {
+      margin-top: 20px;
+      font-size: 16px;
+      color: #6e2c00;
+    }
+  </style>
+</head>
+<body>
+  <h1>汉字配对 · 多关卡挑战</h1>
+  <div id="level">当前关卡：第 1 关</div>
+  <div id="timer">倒计时：60 秒</div>
+  <div id="progress">任务进度：0 / 8</div>
+  <div id="score">得分：0</div>
+  <div id="game-board"></div>
+  <div id="victory-message"></div>
+  <button id="restart-button" onclick="restartGame()">再玩一次</button>
+  <div id="teaching-tip">💡 教学建议：请大声朗读每个汉字及拼音，配对成功后试着用它造句！</div>
+
+  <script>
+    const hanziList = [
+      { char: "麻", pinyin: "má" }, { char: "烦", pinyin: "fán" }, { char: "客", pinyin: "kè" },
+      { char: "气", pinyin: "qì" }, { char: "装", pinyin: "zhuāng" }, { char: "杂", pinyin: "zá" },
+      { char: "志", pinyin: "zhì" }, { char: "经济", pinyin: "jīng jì" }, { char: "课本", pinyin: "kè běn" },
+      { char: "帮忙", pinyin: "bāng máng" }, { char: "旅馆", pinyin: "lǚ guǎn" }, { char: "相信", pinyin: "xiāng xìn" },
+      { char: "水平", pinyin: "shuǐ píng" }, { char: "辛苦", pinyin: "xīn kǔ" }, { char: "方面", pinyin: "fāng miàn" }
+    ];
+
+    let level = 1;
+    let matchGoal = 8;
+    let progress = 0;
+    let score = 0;
+    let selectedTile = null;
+    let countdown;
+    const gameBoard = document.getElementById("game-board");
+    const progressText = document.getElementById("progress");
+    const scoreText = document.getElementById("score");
+    const victoryMessage = document.getElementById("victory-message");
+    const restartButton = document.getElementById("restart-button");
+    const levelText = document.getElementById("level");
+    const timerText = document.getElementById("timer");
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function createBoard() {
+      const chosen = [];
+      while (chosen.length < matchGoal) {
+        const h = hanziList[Math.floor(Math.random() * hanziList.length)];
+        if (!chosen.some(e => e.char === h.char)) {
+          chosen.push(h);
+        }
+      }
+      const fullSet = [...chosen, ...chosen];
+      shuffle(fullSet);
+
+      gameBoard.innerHTML = "";
+      fullSet.forEach(({ char, pinyin }) => {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.dataset.char = char;
+        if (level === 1) {
+          tile.innerHTML = `<div>${pinyin}</div><div style='font-size:24px;'>${char}</div>`;
+        } else {
+          tile.innerHTML = `<div style='font-size:24px;'>${char}</div>`;
+        }
+        tile.addEventListener("click", () => handleClick(tile));
+        gameBoard.appendChild(tile);
+      });
+    }
+
+    function handleClick(tile) {
+      if (tile.classList.contains("matched") || tile === selectedTile) return;
+
+      tile.style.backgroundColor = "#f6ddcc";
+
+      if (!selectedTile) {
+        selectedTile = tile;
+      } else {
+        if (tile.dataset.char === selectedTile.dataset.char) {
+          tile.classList.add("matched");
+          selectedTile.classList.add("matched");
+          tile.style.backgroundColor = "#a9dfbf";
+          selectedTile.style.backgroundColor = "#a9dfbf";
+          progress++;
+          score += 10;  // Increase score with each match
+          progressText.textContent = `任务进度：${progress} / ${matchGoal}`;
+          scoreText.textContent = `得分：${score}`;
+
+          if (progress < matchGoal) {
+            victoryMessage.textContent = `你离胜利还有 ${matchGoal - progress} 步！加油！`;
+          } else {
+            clearInterval(countdown);
+            victoryMessage.innerHTML = `🎉 <b>第 ${level} 关完成！</b><br>🏆 奖励：+100金币 +1经验值！`;
+            restartButton.style.display = "inline-block";
+          }
+        } else {
+          setTimeout(() => {
+            tile.style.backgroundColor = "";
+            selectedTile.style.backgroundColor = "";
+          }, 500);
+        }
+        selectedTile = null;
+      }
+    }
+
+    function restartGame() {
+      level++;
+      matchGoal += 2;
+      progress = 0;
+      selectedTile = null;
+      score = 0;
+      levelText.textContent = `当前关卡：第 ${level} 关`;
+      progressText.textContent = `任务进度：0 / ${matchGoal}`;
+      scoreText.textContent = `得分：${score}`;
+      victoryMessage.textContent = "";
+      restartButton.style.display = "none";
+      startTimer();
+      createBoard();
+    }
+
+    function startTimer() {
+      let timeLeft = 60;
+      timerText.textContent = `倒计时：${timeLeft} 秒`;
+      clearInterval(countdown);
+      countdown = setInterval(() => {
+        timeLeft--;
+        timerText.textContent = `倒计时：${timeLeft} 秒`;
+        if (timeLeft <= 0) {
+          clearInterval(countdown);
+          victoryMessage.innerHTML = "⏰ 时间到！请点击“再玩一次”重试本关。";
+          restartButton.style.display = "inline-block";
+        }
+      }, 1000);
+    }
+
+    window.onload = () => {
+      createBoard();
+      startTimer();
+    };
+  </script>
+</body>
+</html>
